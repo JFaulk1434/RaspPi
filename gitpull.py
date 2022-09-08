@@ -20,7 +20,7 @@ def clone():
         print(f'pulling from github...')
         print(f'adding {FNAME} to {FPATH}')
     else:
-        subprocess.Popen(['git', 'pull', GIT_REPO])
+        subprocess.Popen(['git', 'fetch', GIT_REPO])
         print(f'Files already detected...')
         print(f'ignoring')
 # def clone():
