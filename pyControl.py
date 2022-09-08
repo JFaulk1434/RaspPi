@@ -9,6 +9,8 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.info("Starting Log")
 
+time.sleep(10)  # give time to establish network connection
+
 
 def log(text):
     # Log and log text
