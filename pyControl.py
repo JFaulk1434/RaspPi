@@ -3,11 +3,6 @@ import time
 import logging
 import json
 
-<<<<<<< HEAD
-
-=======
-# test test test2
->>>>>>> 047f69ad68dde99d1d0015c43fb2ba574de13e25
 logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', filename="log.txt", level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger()
