@@ -168,7 +168,7 @@ BR1_PORT = 5000
 br1 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Server Information - Device Python is running on
-WEB_IP = "10.0.0.18"
+WEB_IP = "10.0.0.32"
 WEB_PORT = 65432
 
 # B-260 IR Codes
