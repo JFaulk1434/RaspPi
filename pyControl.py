@@ -106,26 +106,20 @@ def setbezel():
 
 brs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-# B-260 IR Codes
-SWINPUT1 = "0000 006D 0022 0002 0155 00AA 0015 0015 0015 0040 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0015 0015 0015 0015 0040 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0040 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 05ED 0155 0055 0015 0E47"
-SWINPUT2 = "0000 006D 0022 0002 0155 00AA 0015 0015 0015 0040 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0015 0015 0040 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 05ED 0155 0055 0015 0E47"
-SWINPUT3 = "0000 006D 0022 0002 0155 00AA 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0015 0015 0040 0015 0040 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0015 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 05ED 0155 0055 0015 0E47"
-SWINPUT4 = "0000 006D 0022 0002 0155 00AA 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0040 0015 0015 0015 0015 0015 0040 0015 0040 0015 0015 0015 0015 0015 0015 0015 0015 0015 0040 0015 0040 0015 0015 0015 0015 0015 0040 0015 0040 0015 0040 0015 0040 0015 05ED 0155 0055 0015 0E47"
-
 
 def setinput(input):
     # expects int 1-4 for the input
     if input == 1:
-        con.send(byte(f'infrared "{SWINPUT1}" ALL_RX'))
+        con.send(byte(f'infrared "{set.SWINPUT1}" ALL_RX'))
         log(f'Setting Switcher input to {input}')
     elif input == 2:
-        con.send(byte(f'infrared "{SWINPUT2}" ALL_RX'))
+        con.send(byte(f'infrared "{set.SWINPUT2}" ALL_RX'))
         log(f'Setting Switcher input to {input}')
     elif input == 3:
-        con.send(byte(f'infrared "{SWINPUT3}" ALL_RX'))
+        con.send(byte(f'infrared "{set.SWINPUT3}" ALL_RX'))
         log(f'Setting Switcher input to {input}')
     else:
-        con.send(byte(f'infrared "{SWINPUT4}" ALL_RX'))
+        con.send(byte(f'infrared "{set.SWINPUT4}" ALL_RX'))
         log(f'Setting Switcher input to {input}')
 
 
@@ -245,6 +239,10 @@ def macro05():
 def macro06():
     # Description of macro
     log("Starting macro06")
+    setinput(2)
+    log(f'Setting input on switchers to Input2')
+    con.send(byte(f'cec "{set.CECINPUT2}" ALL_RX'))
+    log(f'Setting input to CEC Input2')
     # set IR on switchers to Input2
 
 
@@ -298,6 +296,7 @@ setinput(1)
 
 log("Starting Socket to listen for Keypad commands")
 # Socket incoming from Keypad
+
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((set.WEB_IP, set.WEB_PORT))
     s.listen()
