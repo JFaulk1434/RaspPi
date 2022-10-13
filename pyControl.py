@@ -1,23 +1,40 @@
-# Try/Except on start to help crash when socket not communicating
-# Items to fix
 '''
-Add commands for all 4 Brightsign players
-Add IR commands for all 4 Switchers
 Create macro's for IP6000 on key's 6-10
-Add different commands for Brightsign videos
-
 '''
 import socket
 import time
 import logging
 import json
+import urllib.request
+import urllib.error
 import pyconsettings as set
+import pyControlClasses as py
 
 logging.basicConfig(format='%(asctime)s %(levelname)-8s %(message)s', filename="log.txt", level=logging.INFO,
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 logger.info("Starting Log")
+# Constructors
+# Controller
+con = py.Controller('SC009', set.CON_IP, set.CON_PORT)
+
+# BrightSign
+br1 = py.BrightSign('BR1', set.BR1_IP, set.BR_PORT)
+br2 = py.BrightSign('BR2', set.BR2_IP, set.BR_PORT)
+br3 = py.BrightSign('BR3', set.BR3_IP, set.BR_PORT)
+br4 = py.BrightSign('BR4', set.BR4_IP, set.BR_PORT)
+units = [br1, br2, br3, br4]
+
+
+def wait_for_network():
+    while True:
+        try:
+            print('Waiting on Network')
+            response = urllib.request.urlopen('http://10.0.0.100', timeout=10)
+            return
+        except urllib.error.URLError:
+            pass
 
 
 def log(text):
@@ -26,100 +43,19 @@ def log(text):
     logger.info(text)
 
 
-# Controller Socket Connection
-con = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-con.settimeout(2)
-try:
-    con.connect((set.CON_IP, set.CON_PORT))
-    log(f'Creating Socket to Controller at {set.CON_IP}:{set.CON_PORT}')
-    welcome = con.recv(1024)
-    log(welcome.decode())
-except:
-    log(
-        f'Connection Failed while attempting to connect to {set.CON_IP}:{set.CON_PORT}')
-
-
-def byte(command):
-    # use byte(string) to convert to byte string before sending to controller. ex: con.send(byte(hello))
-    bytestring = f"{command} \r\n".encode()
-    return bytestring
-
-
-def recvall(sock, msg):
-    sock.send(byte(msg))
-    arr = b''
-    fragments = []
-    count = 0
-    try:
-        while True:
-            chunk = sock.recv(4096)
-            count += 1
-            if len(chunk) < 400:
-                break
-            fragments.append(chunk)
-
-    except:
-        log("Received Timeout")
-
-    arr = b''.join(fragments)
-    arr = arr.decode()
-    log(f'Received {count} blocks of data')
-    return arr
-
-
-def getsettings(sock, msg):
-    try:
-        data = recvall(sock, msg)
-        data = data.split(":", 1)
-        data = data[1]
-        js = json.loads(data)
-        js = json.dumps(js, indent=2)
-        log(js)
-    except:
-        log(f'Unable to get settings')
-
-
-def setbezel():
-    log("Starting Bezel adjustments")
-    con.send(byte("vw get"))
-    msg = con.recv(1024)
-    time.sleep(1)
-    fullmsg = msg.decode()
-    walls = fullmsg.splitlines()
-    # remove items with "Row"
-    walls = [x for x in walls if not x.startswith("Row")]
-    # remove items with "Video"
-    walls = [x for x in walls if not x.startswith("Video")]
-    # remove end of each item in list after space
-    walls = [item.split(' ', 1)[0] for item in walls]
-    # remove empty strings
-    walls = [x for x in walls if x]
-    log(walls)
-    for item in walls:
-        con.send(
-            byte(f'vw bezelgap {item} {set.OW} {set.OH} {set.VW} {set.VH}'))
-        log(f'vw bezelgap {item} {set.OW} {set.OH} {set.VW} {set.VH}')
-        time.sleep(.5)
-
-
-# Brightsign UDP Socket
-
-brs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-
 def setinput(input):
     # expects int 1-4 for the input
     if input == 1:
-        con.send(byte(f'infrared "{set.SWINPUT1}" ALL_RX'))
+        con.ir(set.SWINPUT1)
         log(f'Setting Switcher input to {input}')
     elif input == 2:
-        con.send(byte(f'infrared "{set.SWINPUT2}" ALL_RX'))
+        con.ir(set.SWINPUT2)
         log(f'Setting Switcher input to {input}')
     elif input == 3:
-        con.send(byte(f'infrared "{set.SWINPUT3}" ALL_RX'))
+        con.ir(set.SWINPUT3)
         log(f'Setting Switcher input to {input}')
     else:
-        con.send(byte(f'infrared "{set.SWINPUT4}" ALL_RX'))
+        con.ir(set.SWINPUT4)
         log(f'Setting Switcher input to {input}')
 
 
@@ -131,65 +67,80 @@ brmsg = 1
 ##### Global End #####
 
 
-def bright(message):
-    brs.sendto(message, (set.BR1_IP, set.BR_PORT))
-    log(f'Sending to BrightSign: {message}, ({set.BR1_IP}, {set.BR_PORT})')
-
-
-def matrix(encoder, decoder):
-    # Used to set any encoder to any decoder manually
-    matrixstr = f'matrix set {encoder} {decoder}'
-    log(f'Connecting {encoder} to {decoder}')
-    con.send(byte(matrixstr))
-
-
 def all_on():
     # Power on TV's via CEC & set inputs.
     global wall
-    con.send(byte(f'scene active 5100Wall-5100W{wall}'))
+    con.set_Scene(f'scene active 5100Wall-5100W{wall}')
     log(f'Setting Scene to 5100Wall-5100W{wall}')
     wall += 1
     setinput(1)
 
-    con.send(byte(f'cec "{set.PWRON}" ALL_RX'))
-    con.send(byte(f'config set device cec onetouchplay ALL_RX'))
-    log("Turning on all devices...")
-    time.sleep(5)
+    # con.send(byte(f'cec "{set.PWRON}" ALL_RX'))
+    # con.send(byte(f'config set device cec onetouchplay ALL_RX'))
+    # log("Turning on all devices...")
+    # time.sleep(5)
 
-    con.send(byte(f'cec "{set.INPUT1}" ALL_RX'))
-    log(f'Setting input to {set.DEFAULT_INPUT}')
-    time.sleep(2)
+    # con.send(byte(f'cec "{set.CECINPUT1}" ALL_RX'))
+    # log(f'Setting input to {set.DEFAULT_INPUT}')
+    # time.sleep(2)
+
+    br1.select_Movie('Leviathan')
+    br2.select_Movie('blackpanther')
+    br3.select_Movie('Guardians2')
+    br4.select_Movie('Starwarslast')
+
+
+def start5100():
+    global wall
+    con.set_Scene(f'5100Wall-5100W{wall}')
+    log(f'Setting Scene to 5100Wall-5100W{wall}')
+    wall += 1
+    setinput(1)
+
+    br1.select_Movie('Leviathan')
+    br2.select_Movie('Blackpanther')
+    br3.select_Movie('Guardians2')
+    br4.select_Movie('Starwarslast')
+
+
+def start6000():
+    global wall
+    con.set_Scene(f'6000Wall-6000W{wall}')
+    log(f'Setting Scene to 6000Wall-6000W{wall}')
+    wall += 1
+    setinput(2)
 
 
 def all_off():
     # Turn off TV's after sending Input command
     global wall
     global mx
-    con.send(byte(f'cec "{set.DEFAULT_INPUT}" ALL_RX'))
-    log(f'Sending default {set.DEFAULT_INPUT} command')
-    time.sleep(2)
+    # con.send(byte(f'cec "{set.DEFAULT_INPUT}" ALL_RX'))
+    # log(f'Sending default {set.DEFAULT_INPUT} command')
+    # time.sleep(2)
 
-    con.send(byte(f'cec "{set.PWROFF}" ALL_RX'))
-    con.send(byte(f'config set device cec standby ALL_RX'))
+    # con.send(byte(f'cec "{set.PWROFF}" ALL_RX'))
+    con.send(f'config set device cec standby ALL_RX')
     wall = 1
     mx = 1
     log(f'Sending All off CEC Command')
     time.sleep(5)
 
-    con.send(byte(f'matrix set NULL ALL_RX'))
+    con.disconnect_All()
     log(f'Disconnecting all Sources')
 
 
 def macro01():
     # Toggle all on/off
     log("Starting macro01")
-    global pwrstatus
-    if pwrstatus == False:
-        all_on()
-        pwrstatus = True
-    else:
-        all_off()
-        pwrstatus = False
+    start5100()
+    # global pwrstatus
+    # if pwrstatus == False:
+    #     all_on()
+    #     pwrstatus = True
+    # else:
+    #     all_off()
+    #     pwrstatus = False
 
 
 def macro02():
@@ -197,8 +148,7 @@ def macro02():
     log("Starting macro02")
     global wall
     log(f'Starting Video Wall {wall}')
-    wallstr = f'scene active 5100Wall-5100W{wall}'
-    con.send(byte(wallstr))
+    con.set_Scene(f'5100Wall-5100W{wall}')
     wall += 1
     if wall >= 5:
         wall = 1
@@ -209,41 +159,33 @@ def macro03():
     log("Starting macro03")
     global mx
     log(f'Starting Matrix Scene {mx}')
-    mxstr = f'scene active 5100Wall-5100MX{mx}'
-    con.send(byte(mxstr))
+    con.set_Scene(f'5100Wall-5100MX{mx}')
     mx += 1
     if mx >= 5:
         mx = 1
 
 
 def macro04():
-    # Swap Brightsign Video
-    global brmsg
+    # Restart Movies
     log("Starting macro04")
-    if brmsg >= 5:
-        brmsg = 1
-    else:
-        brmsg += 1
-    msg = f'dbv{brmsg}'  # ex dbv1, dbv2
-    log(f'Sending {msg} to BrightSign')
-    # Deal with all of the Brightsign players
-    brs.sendto(msg.encode('ascii'), (set.BR1_IP, set.BR_PORT))
+    for device in units:
+        device.select_Movie('CoreUniverse')
+
+    br1.select_Movie('Leviathan')
+    br2.select_Movie('Guardians2')
+    br3.select_Movie('Starwarslast')
+    br4.select_Movie('Blackpanther')
 
 
 def macro05():
     # Description of macro
-    recvall(con, f'config get telnet alias')
     pass
 
 
 def macro06():
     # Description of macro
     log("Starting macro06")
-    setinput(2)
-    log(f'Setting input on switchers to Input2')
-    con.send(byte(f'cec "{set.CECINPUT2}" ALL_RX'))
-    log(f'Setting input to CEC Input2')
-    # set IR on switchers to Input2
+    start6000()
 
 
 def macro07():
@@ -251,8 +193,8 @@ def macro07():
     log("Starting macro07")
     global mx
     log(f'Starting Matrix Scene {mx}')
-    mxstr = f'scene active 6000Wall-6000MX{mx}'
-    con.send(byte(mxstr))
+    con.set_Scene(f'6000Wall-6000MX{mx}')
+
     mx += 1
     if mx >= 5:
         mx = 1
@@ -263,8 +205,7 @@ def macro08():
     log("Starting macro08")
     global wall
     log(f'Starting Video Wall {wall}')
-    wallstr = f'scene active 6000Wall-6000W{wall}'
-    con.send(byte(wallstr))
+    con.set_Scene(f'6000Wall-6000W{wall}')
     wall += 1
     if wall >= 5:
         wall = 1
@@ -272,15 +213,7 @@ def macro08():
 
 def macro09():
     # Description of macro
-    global brmsg
-    log("Starting macro09")
-    if brmsg >= 5:
-        brmsg = 1
-    else:
-        brmsg += 1
-    msg = f'dbv{brmsg}'
-    log(f'Sending {msg} to BrightSign')
-    brs.sendto(msg.encode('ascii'), (set.BR1_IP, set.BR_PORT))
+    macro04()
 
 
 def macro10():
@@ -289,14 +222,12 @@ def macro10():
 
 
 # Core Program
-getsettings(con, f'config get devicejsonstring')
-setbezel()
-setinput(1)
-
-
+wait_for_network()
+con.set_Bezel(set.bezel)
 log("Starting Socket to listen for Keypad commands")
-# Socket incoming from Keypad
 
+
+# Socket incoming from Keypad
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((set.WEB_IP, set.WEB_PORT))
     s.listen()
